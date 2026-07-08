@@ -17,8 +17,9 @@ export default async function ToolsPage() {
   const admin = isAdminEmail(user?.email)
 
   function stateFor(price: number, slug: string): 'open' | 'locked' | 'login' {
+    if (price === 0) return 'open' // gratis = pública
     if (!user) return 'login'
-    if (admin || price === 0 || entitlements.includes(slug)) return 'open'
+    if (admin || entitlements.includes(slug)) return 'open'
     return 'locked'
   }
 

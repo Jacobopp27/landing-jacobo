@@ -36,14 +36,14 @@ export type AccessResult =
 
 // Decide si el usuario actual puede usar una herramienta.
 export async function canAccessTool(tool: Tool): Promise<AccessResult> {
+  // Gratis: pública, cualquiera la usa sin necesidad de cuenta.
+  if (tool.price === 0) return { ok: true }
+
   const user = await getUser()
   if (!user) return { ok: false, reason: 'auth' }
 
   // El admin (dueño) tiene acceso a todas las herramientas.
   if (isAdminEmail(user.email)) return { ok: true }
-
-  // Gratis: basta con tener sesión.
-  if (tool.price === 0) return { ok: true }
 
   // De pago: requiere un acceso registrado.
   const entitlements = await getUserEntitlements()
