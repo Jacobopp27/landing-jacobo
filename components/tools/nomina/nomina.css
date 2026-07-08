@@ -1,0 +1,716 @@
+/* Estilos de la Calculadora de Nómina — TODO va encapsulado bajo .nomina-app
+   para no afectar el resto de la página (tema oscuro del sitio). */
+
+.nomina-app {
+  --verde: #16a34a;
+  --verde-claro: #dcfce7;
+  --verde-hover: #15803d;
+  --azul: #2563eb;
+  --rojo: #dc2626;
+  --rojo-claro: #fee2e2;
+  --naranja: #ea580c;
+  --naranja-claro: #ffedd5;
+  --gris-bg: #f8fafc;
+  --gris-borde: #e2e8f0;
+  --gris-texto: #64748b;
+  --texto: #1e293b;
+  --blanco: #ffffff;
+  --sombra: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --sombra-hover: 0 4px 12px rgba(0,0,0,.1);
+  --radio: 12px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  font-family: var(--font);
+  background: var(--gris-bg);
+  color: var(--texto);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.nomina-app *, .nomina-app *::before, .nomina-app *::after {
+  box-sizing: border-box;
+}
+
+/* ─── Layout página completa ────────────────────────────────────── */
+.nomina-app .app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 0 40px;
+  position: relative;
+}
+
+.nomina-app .nomina-back {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  z-index: 2;
+  color: rgba(255,255,255,.9);
+  font-size: .82rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.nomina-app .nomina-back:hover { color: #fff; text-decoration: underline; }
+
+.nomina-app .app-header {
+  background: linear-gradient(135deg, #16a34a 0%, #059669 100%);
+  color: white;
+  padding: 28px 20px 24px;
+  text-align: center;
+  border-radius: 0 0 20px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(22,163,74,.3);
+}
+
+.nomina-app .app-header h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+.nomina-app .app-subtitle { font-size: .9rem; opacity: .9; }
+
+.nomina-app .app-main { padding: 0 16px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ─── Guía "¿Cómo funciona?" ────────────────────────────────────── */
+.nomina-app .nomina-como-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--texto);
+  padding: 0;
+}
+
+.nomina-app .nomina-como-lista {
+  margin: 14px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nomina-app .nomina-como-lista li {
+  font-size: .85rem;
+  color: var(--gris-texto);
+  line-height: 1.45;
+}
+
+.nomina-app .nomina-como-lista strong { color: var(--texto); font-weight: 600; }
+
+.nomina-app .app-footer {
+  text-align: center;
+  padding: 20px 16px 0;
+  font-size: .75rem;
+  color: var(--gris-texto);
+}
+
+/* ─── Card ──────────────────────────────────────────────────────── */
+.nomina-app .card {
+  background: var(--blanco);
+  border-radius: var(--radio);
+  padding: 18px;
+  box-shadow: var(--sombra);
+  border: 1px solid var(--gris-borde);
+}
+
+/* ─── SalarioInput ──────────────────────────────────────────────── */
+.nomina-app .salario-input label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--gris-texto);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 10px;
+}
+
+.nomina-app .label-icon { font-size: 1.1rem; }
+
+.nomina-app .input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--gris-borde);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+
+.nomina-app .input-wrapper:focus-within { border-color: var(--verde); }
+
+.nomina-app .currency-prefix {
+  padding: 0 12px;
+  background: var(--gris-bg);
+  color: var(--gris-texto);
+  font-weight: 700;
+  font-size: 1rem;
+  border-right: 2px solid var(--gris-borde);
+  height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+.nomina-app .input-wrapper input {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  outline: none;
+  font-size: 1.05rem;
+  font-family: var(--font);
+  color: var(--texto);
+  background: transparent;
+}
+
+.nomina-app .salario-preview {
+  margin-top: 8px;
+  font-size: .82rem;
+  color: var(--verde);
+  font-weight: 500;
+}
+
+/* ─── Resumen ───────────────────────────────────────────────────── */
+.nomina-app .resumen-vacio {
+  text-align: center;
+  color: var(--gris-texto);
+  padding: 28px;
+  font-size: .95rem;
+}
+
+.nomina-app .resumen-total {
+  background: linear-gradient(135deg, #16a34a, #059669);
+  color: white;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.nomina-app .total-label { display: block; font-size: .8rem; opacity: .9; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.nomina-app .total-valor { display: block; font-size: 2rem; font-weight: 800; letter-spacing: -.02em; }
+.nomina-app .total-sub { display: block; font-size: .8rem; opacity: .8; margin-top: 4px; margin-bottom: 14px; }
+
+.nomina-app .total-desglose {
+  background: rgba(255,255,255,.12);
+  border-radius: 10px;
+  padding: 4px 2px;
+  margin-top: 4px;
+}
+
+.nomina-app .total-desglose-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+
+.nomina-app .total-desglose-icono { font-size: 1.1rem; flex-shrink: 0; }
+
+.nomina-app .total-desglose-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.nomina-app .total-desglose-label { font-size: .85rem; font-weight: 700; color: white; }
+.nomina-app .total-desglose-desc { font-size: .72rem; opacity: .75; }
+
+.nomina-app .total-desglose-valor {
+  font-size: .95rem;
+  font-weight: 700;
+  color: white;
+  white-space: nowrap;
+}
+
+.nomina-app .total-desglose-recargo { color: #bbf7d0; }
+
+.nomina-app .total-desglose-divider {
+  height: 1px;
+  background: rgba(255,255,255,.2);
+  margin: 0 12px;
+}
+
+.nomina-app .horas-semanales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.nomina-app .semana-badge {
+  background: var(--gris-bg);
+  border: 1px solid var(--gris-borde);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: .78rem;
+  color: var(--gris-texto);
+}
+
+.nomina-app .semana-extra {
+  background: var(--naranja-claro);
+  border-color: var(--naranja);
+  color: var(--naranja);
+  font-weight: 600;
+}
+
+.nomina-app .desglose h4 {
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--gris-texto);
+  margin-bottom: 12px;
+}
+
+.nomina-app .desglose-item {
+  border-left: 3px solid var(--verde-claro);
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 0 8px 8px 0;
+  background: var(--gris-bg);
+}
+
+.nomina-app .desglose-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nomina-app .desglose-emoji { font-size: 1rem; }
+
+.nomina-app .desglose-label {
+  flex: 1;
+  font-size: .88rem;
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.nomina-app .desglose-recargo {
+  font-size: .78rem;
+  background: var(--verde-claro);
+  color: var(--verde-hover);
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.nomina-app .desglose-valor {
+  font-size: .92rem;
+  font-weight: 700;
+  color: var(--verde);
+}
+
+.nomina-app .desglose-desc {
+  font-size: .78rem;
+  color: var(--gris-texto);
+  margin-top: 4px;
+}
+
+.nomina-app .resumen-nota {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 16px;
+}
+
+.nomina-app .resumen-nota p { font-size: .8rem; color: #166534; }
+
+.nomina-app .btn-export {
+  margin-top: 14px;
+  width: 100%;
+  padding: 12px;
+  background: var(--blanco);
+  border: 2px solid var(--verde);
+  color: var(--verde);
+  border-radius: 8px;
+  font-size: .92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.nomina-app .btn-export:hover { background: var(--verde); color: white; }
+
+/* ─── Sección días ──────────────────────────────────────────────── */
+.nomina-app .seccion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.nomina-app .seccion-header h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--texto);
+}
+
+.nomina-app .badge-count {
+  background: var(--verde);
+  color: white;
+  border-radius: 20px;
+  padding: 1px 8px;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.nomina-app .seccion-acciones { display: flex; gap: 8px; align-items: center; }
+
+/* ─── Botones ───────────────────────────────────────────────────── */
+.nomina-app .btn-primary {
+  background: var(--verde);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s, transform .1s;
+  font-family: var(--font);
+}
+
+.nomina-app .btn-primary:hover { background: var(--verde-hover); }
+.nomina-app .btn-primary:active { transform: scale(.97); }
+
+.nomina-app .btn-secondary {
+  background: var(--gris-bg);
+  color: var(--gris-texto);
+  border: 1px solid var(--gris-borde);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s;
+  font-family: var(--font);
+}
+
+.nomina-app .btn-secondary:hover { background: var(--gris-borde); }
+
+.nomina-app .btn-limpiar {
+  background: transparent;
+  border: 1px solid var(--gris-borde);
+  color: var(--gris-texto);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: var(--font);
+}
+
+.nomina-app .btn-limpiar:hover { border-color: var(--rojo); color: var(--rojo); }
+.nomina-app .btn-confirmar { border-color: var(--rojo) !important; color: var(--rojo) !important; background: var(--rojo-claro) !important; font-weight: 600; }
+
+.nomina-app .btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background .15s;
+}
+
+.nomina-app .btn-icon:hover { background: var(--gris-bg); }
+.nomina-app .btn-danger:hover { background: var(--rojo-claro); }
+
+/* ─── Formulario ────────────────────────────────────────────────── */
+.nomina-app .formulario-dia h3 {
+  font-size: .95rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: var(--texto);
+}
+
+.nomina-app .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.nomina-app .form-group label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--gris-texto);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.nomina-app .form-group input, .nomina-app .form-row input {
+  border: 2px solid var(--gris-borde);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: .95rem;
+  font-family: var(--font);
+  color: var(--texto);
+  transition: border-color .2s;
+  width: 100%;
+  background: var(--blanco);
+}
+
+.nomina-app .form-group input:focus, .nomina-app .form-row input:focus {
+  outline: none;
+  border-color: var(--verde);
+}
+
+.nomina-app .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.nomina-app .duracion-preview {
+  font-size: .82rem;
+  color: var(--verde);
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.nomina-app .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 12px;
+  border: 2px solid var(--gris-borde);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: border-color .2s, background .2s;
+}
+
+.nomina-app .checkbox-label:hover { border-color: var(--verde); background: #f0fdf4; }
+
+.nomina-app .checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--verde);
+}
+
+.nomina-app .checkbox-label span { font-size: .9rem; font-weight: 500; }
+
+.nomina-app .error-msg {
+  color: var(--rojo);
+  font-size: .82rem;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: var(--rojo-claro);
+  border-radius: 6px;
+}
+
+.nomina-app .form-actions { display: flex; gap: 10px; }
+.nomina-app .form-actions .btn-primary { flex: 1; }
+
+/* ─── Lista de días ─────────────────────────────────────────────── */
+.nomina-app .lista-vacia {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--gris-texto);
+  background: var(--blanco);
+  border-radius: var(--radio);
+  border: 2px dashed var(--gris-borde);
+  font-size: .9rem;
+}
+
+.nomina-app .lista-dias { display: flex; flex-direction: column; gap: 8px; }
+
+.nomina-app .dia-card {
+  background: var(--blanco);
+  border: 1px solid var(--gris-borde);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--sombra);
+  transition: box-shadow .2s;
+}
+
+.nomina-app .dia-card:hover { box-shadow: var(--sombra-hover); }
+
+.nomina-app .dia-card.dom-festivo {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.nomina-app .dia-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nomina-app .dia-fecha { font-weight: 700; font-size: .9rem; }
+
+.nomina-app .badge-dom {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.nomina-app .dia-horas { font-size: .85rem; color: var(--gris-texto); }
+.nomina-app .dia-duracion { font-size: .82rem; color: var(--verde); font-weight: 600; }
+
+.nomina-app .dia-acciones { display: flex; gap: 2px; }
+
+/* ─── Ajustes ───────────────────────────────────────────────────── */
+.nomina-app .ajustes-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--texto);
+  padding: 0;
+}
+
+.nomina-app .ajustes-indicadores { display: flex; align-items: center; gap: 8px; }
+
+.nomina-app .badge-mod {
+  background: var(--naranja-claro);
+  color: var(--naranja);
+  border: 1px solid var(--naranja);
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+
+.nomina-app .ajustes-chevron { font-size: .75rem; color: var(--gris-texto); }
+
+.nomina-app .ajustes-contenido {
+  margin-top: 16px;
+  border-top: 1px solid var(--gris-borde);
+  padding-top: 16px;
+}
+
+.nomina-app .ajustes-aviso {
+  font-size: .8rem;
+  color: var(--gris-texto);
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: var(--gris-bg);
+  border-radius: 6px;
+}
+
+.nomina-app .ajustes-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.nomina-app .ajuste-item {
+  padding: 10px 12px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 8px;
+  background: var(--gris-bg);
+  transition: border-color .2s;
+}
+
+.nomina-app .ajuste-modificado {
+  border-color: var(--naranja);
+  background: var(--naranja-claro);
+}
+
+.nomina-app .ajuste-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.nomina-app .ajuste-header label { font-size: .86rem; font-weight: 600; color: var(--texto); }
+.nomina-app .ajuste-original { font-size: .72rem; color: var(--naranja); font-weight: 500; }
+.nomina-app .ajuste-desc { font-size: .75rem; color: var(--gris-texto); margin-bottom: 8px; }
+
+.nomina-app .ajuste-input-row { display: flex; align-items: center; gap: 8px; }
+
+.nomina-app .ajuste-input-row input {
+  width: 90px;
+  border: 2px solid var(--gris-borde);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: .95rem;
+  font-family: var(--font);
+  color: var(--texto);
+  background: var(--blanco);
+  transition: border-color .2s;
+}
+
+.nomina-app .ajuste-input-row input:focus { outline: none; border-color: var(--verde); }
+.nomina-app .ajuste-unidad { font-size: .85rem; font-weight: 600; color: var(--gris-texto); }
+
+.nomina-app .ajustes-footer { display: flex; flex-direction: column; gap: 12px; }
+
+.nomina-app .ajustes-combinados {
+  background: var(--gris-bg);
+  border: 1px solid var(--gris-borde);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.nomina-app .combinados-titulo {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--gris-texto);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 8px;
+}
+
+.nomina-app .combinados-lista { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.nomina-app .combinados-lista span {
+  font-size: .8rem;
+  background: var(--blanco);
+  border: 1px solid var(--gris-borde);
+  border-radius: 20px;
+  padding: 2px 10px;
+  color: var(--texto);
+}
+
+.nomina-app .btn-reset {
+  background: transparent;
+  border: 1px solid var(--gris-borde);
+  color: var(--gris-texto);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: var(--font);
+  align-self: flex-start;
+}
+
+.nomina-app .btn-reset:hover { border-color: var(--naranja); color: var(--naranja); }
+
+/* ─── Mobile ────────────────────────────────────────────────────── */
+@media (max-width: 400px) {
+  .nomina-app .app-header h1 { font-size: 1.35rem; }
+  .nomina-app .total-valor { font-size: 1.7rem; }
+  .nomina-app .form-row { grid-template-columns: 1fr; }
+  .nomina-app .dia-info { gap: 6px; }
+}

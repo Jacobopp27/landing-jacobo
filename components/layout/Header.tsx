@@ -46,6 +46,12 @@ export default function Header() {
               {label}
             </a>
           ))}
+          <Link
+            href="/herramientas"
+            className="text-sm text-text-secondary hover:text-text-primary transition-colors duration-200"
+          >
+            Herramientas
+          </Link>
         </nav>
 
         {/* Primary CTA — sticky, always visible (pattern: CTA cemetery avoided) */}
