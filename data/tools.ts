@@ -36,6 +36,18 @@ export const tools: Tool[] = [
     fullPage: true,
   },
   {
+    slug: 'agenda-pacientes',
+    name: 'Agenda de Pacientes',
+    tagline: 'Lleva el control de tus pacientes, citas y recordatorios de seguimiento.',
+    description:
+      'Un CRM sencillo para clínicas y profesionales de salud: registra pacientes con su historial, agenda citas y crea recordatorios de seguimiento. Cada cuenta ve solo sus propios datos, de forma privada y segura.',
+    price: 12, // precio en USD — ajústalo a lo que quieras cobrar
+    category: 'Salud',
+    icon: '🩺',
+    status: 'available',
+    fullPage: true,
+  },
+  {
     slug: 'demo-gratis',
     name: 'Herramienta Demo (Gratis)',
     tagline: 'Ejemplo gratuito para probar el sistema de cuentas y acceso.',
