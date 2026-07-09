@@ -66,7 +66,7 @@ export function Sidebar({ items, active, onChange }) {
         })}
       </nav>
       <p className="px-3 text-[11px] leading-snug text-slate-300">
-        Datos solo en este dispositivo · sin servidores
+        Datos guardados en la nube · privados de tu cuenta
       </p>
     </aside>
   )

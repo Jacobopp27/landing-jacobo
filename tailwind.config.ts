@@ -23,6 +23,19 @@ const config: Config = {
         'accent-glow': 'rgba(6, 182, 212, 0.15)',
         purple: '#8b5cf6',
         'purple-dim': 'rgba(139, 92, 246, 0.1)',
+        // Paleta "brand" (azul clínico) usada por la herramienta Agenda de Pacientes.
+        brand: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
+        },
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
