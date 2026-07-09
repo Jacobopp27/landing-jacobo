@@ -18,6 +18,10 @@ export type Tool = {
   status: 'available' | 'coming-soon'
   /** Si es true, la herramienta ocupa toda la pantalla (sin el marco del sitio). */
   fullPage?: boolean
+  /** Visible en el catálogo público. Se controla desde el panel. */
+  published?: boolean
+  /** Orden en el catálogo. Se controla desde el panel. */
+  sortOrder?: number
   /** ID del producto en Lemon Squeezy (se agrega cuando conectemos el pago). */
   lemonVariantId?: string
 }

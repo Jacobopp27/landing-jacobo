@@ -75,19 +75,27 @@ export default async function AdminPage() {
         <GrantForm />
       </section>
 
-      {/* Precios de las herramientas */}
+      {/* Gestión de herramientas: orden, visibilidad y precio */}
       <section className="mb-10">
-        <h2 className="text-lg font-medium text-text-primary mb-1">Precios de herramientas</h2>
+        <h2 className="text-lg font-medium text-text-primary mb-1">Herramientas</h2>
         <p className="text-sm text-text-secondary mb-4">
-          Pon <span className="text-text-primary">0</span> para dejarla <span className="text-green-400">gratis</span>,
-          o un precio para hacerla de pago.
+          Usa <span className="text-text-primary">▲▼</span> para ordenar, el botón de estado para{' '}
+          <span className="text-green-400">mostrar</span>/<span className="text-text-muted">ocultar</span>, y el
+          precio (<span className="text-text-primary">0</span> = gratis).
         </p>
         <ToolPricing
-          tools={catalog.map((t) => ({ slug: t.slug, name: t.name, icon: t.icon, price: t.price }))}
+          tools={catalog.map((t) => ({
+            slug: t.slug,
+            name: t.name,
+            icon: t.icon,
+            price: t.price,
+            published: t.published ?? true,
+          }))}
         />
         <p className="mt-3 text-xs text-text-muted">
-          ⚠️ Cuando conectemos el pago, el precio de las herramientas de pago debe coincidir con el
-          del producto en Lemon Squeezy.
+          ⚠️ Cuando conectemos el pago, el precio de las de pago debe coincidir con el del producto en
+          Lemon Squeezy. Las ocultas no aparecen en el catálogo (pero siguen accesibles por link para
+          quien ya tiene acceso).
         </p>
       </section>
 

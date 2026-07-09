@@ -11,7 +11,7 @@ export const metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function ToolsPage() {
-  const tools = await getCatalog()
+  const tools = (await getCatalog()).filter((t) => t.published !== false)
   const user = await getUser()
   const entitlements = user ? await getUserEntitlements() : []
   const admin = isAdminEmail(user?.email)
