@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import DemoTool from './DemoTool'
 import CalculadoraNomina from './nomina/CalculadoraNomina'
 import AgendaPacientes from './clinica/AgendaPacientes'
+import CarroElectrico from './carro/CarroElectrico'
 
 // Registro de herramientas: mapea el slug de cada herramienta a su componente.
 // Cuando agregues una herramienta nueva:
@@ -11,6 +12,7 @@ import AgendaPacientes from './clinica/AgendaPacientes'
 export const toolComponents: Record<string, ComponentType> = {
   'calculadora-nomina': CalculadoraNomina,
   'agenda-pacientes': AgendaPacientes,
+  'carro-electrico-medellin': CarroElectrico,
   'demo-gratis': DemoTool,
   'demo-premium': DemoTool,
 }

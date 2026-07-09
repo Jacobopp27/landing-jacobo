@@ -52,6 +52,18 @@ export const tools: Tool[] = [
     fullPage: true,
   },
   {
+    slug: 'carro-electrico-medellin',
+    name: '¿Eléctrico o Gasolina?',
+    tagline: 'Compara si te conviene un carro eléctrico según tus rutas en Medellín.',
+    description:
+      'Dibuja tus rutas frecuentes en el mapa de Medellín y compara el costo real de un carro eléctrico vs. gasolina: ahorro mensual, años para recuperar el sobrecosto, CO₂ evitado y la física detrás.',
+    price: 0, // gratis por ahora — cámbialo en el panel si quieres cobrar
+    category: 'Movilidad',
+    icon: '🚗',
+    status: 'available',
+    fullPage: true,
+  },
+  {
     slug: 'demo-gratis',
     name: 'Herramienta Demo (Gratis)',
     tagline: 'Ejemplo gratuito para probar el sistema de cuentas y acceso.',
