@@ -155,22 +155,81 @@ function angleAt(lm, a, b, c) {
   return (Math.acos(cos) * 180) / Math.PI;
 }
 
-// Devuelve un array de 8 ángulos (grados o null).
-function computeAngles(landmarks) {
-  if (!landmarks) return JOINTS.map(() => null);
-  return JOINTS.map((j) => angleAt(landmarks, j.a, j.b, j.c));
+// Punto medio entre dos landmarks. Devuelve null si alguno no es confiable,
+// para que el null se propague a la feature que lo use.
+function midpoint(lm, i, j) {
+  const p = lm[i], q = lm[j];
+  if (!p || !q) return null;
+  if ((p.visibility ?? 1) < VIS_MIN || (q.visibility ?? 1) < VIS_MIN) return null;
+  return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
 }
 
-// Compara dos vectores de ángulos. Devuelve { score, worstIndex, worstDiff }.
-function compareAngles(liveAngles, refAngles) {
-  if (!liveAngles || !refAngles) return { score: 0, worstIndex: null, worstDiff: 0 };
+// Inclinación de la columna (hombros→caderas) respecto a la VERTICAL, en grados.
+// Con signo: captura inclinarse lateral (y algo de adelante/atrás vía x,y).
+function torsoLean(lm) {
+  const sh = midpoint(lm, 11, 12);
+  const hip = midpoint(lm, 23, 24);
+  if (!sh || !hip) return null;
+  const dx = hip.x - sh.x;
+  const dy = hip.y - sh.y; // hacia abajo en coords de imagen
+  if (Math.hypot(dx, dy) < 1e-6) return null;
+  return (Math.atan2(dx, dy) * 180) / Math.PI; // desviación de la vertical
+}
+
+// Ángulo de una línea (p→q) respecto a la HORIZONTAL, en grados, con signo.
+function lineTilt(lm, i, j) {
+  const p = lm[i], q = lm[j];
+  if (!p || !q) return null;
+  if ((p.visibility ?? 1) < VIS_MIN || (q.visibility ?? 1) < VIS_MIN) return null;
+  const dx = q.x - p.x;
+  const dy = q.y - p.y;
+  if (Math.hypot(dx, dy) < 1e-6) return null;
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+}
+
+// Vector de FEATURES (en grados). Cada item sabe calcularse desde los landmarks
+// y devuelve null si los puntos que necesita no son confiables (visibility < 0.5).
+// Las 8 primeras son las articulaciones históricas; les siguen 3 features de tronco.
+const FEATURES = [
+  ...JOINTS.map((j) => ({
+    key: j.key,
+    label: j.label,
+    compute: (lm) => angleAt(lm, j.a, j.b, j.c),
+  })),
+  { key: "torsoLean", label: "el torso", compute: (lm) => torsoLean(lm) },
+  { key: "hombros", label: "los hombros", compute: (lm) => lineTilt(lm, 11, 12) },
+  { key: "cadera", label: "la cadera (giro)", compute: (lm) => lineTilt(lm, 23, 24) },
+];
+
+// Índice de la feature espejada (izq ↔ der). Las 3 de tronco se mapean a sí mismas.
+const FEATURE_LR_SWAP = [1, 0, 3, 2, 5, 4, 7, 6, 8, 9, 10];
+
+// Pares L/R de MediaPipe Pose para espejar por índice de landmark.
+const LR_PAIRS = [
+  [1, 4], [2, 5], [3, 6], [7, 8], [9, 10], [11, 12], [13, 14], [15, 16],
+  [17, 18], [19, 20], [21, 22], [23, 24], [25, 26], [27, 28], [29, 30], [31, 32],
+];
+
+// Devuelve el vector de features (números/null), una entrada por FEATURE.
+function computeFeatures(landmarks) {
+  if (!landmarks) return FEATURES.map(() => null);
+  return FEATURES.map((f) => f.compute(landmarks));
+}
+
+// Compara dos vectores de features. Devuelve { score, worstIndex, worstDiff }.
+// Solo promedia sobre índices donde AMBOS son no-null. Si los vectores tienen
+// distinta longitud (coreos viejas guardaron solo 8 features), compara sobre los
+// índices comunes para no crashear.
+function compareFeatures(a, b) {
+  if (!a || !b) return { score: 0, worstIndex: null, worstDiff: 0 };
+  const n = Math.min(a.length, b.length);
   let sum = 0;
   let count = 0;
   let worstIndex = null;
   let worstDiff = -1;
-  for (let i = 0; i < JOINTS.length; i++) {
-    const l = liveAngles[i];
-    const r = refAngles[i];
+  for (let i = 0; i < n; i++) {
+    const l = a[i];
+    const r = b[i];
     if (l == null || r == null) continue;
     const diff = Math.abs(l - r);
     sum += diff;
@@ -186,27 +245,47 @@ function compareAngles(liveAngles, refAngles) {
   return { score, worstIndex, worstDiff: Math.max(0, worstDiff) };
 }
 
-// Índice de la articulación espejada (izq ↔ der) según el orden de JOINTS.
-const LR_SWAP = [1, 0, 3, 2, 5, 4, 7, 6];
+// Espeja los landmarks completos: cada punto {x:1-x, y, z, visibility} colocado
+// en el índice L/R intercambiado. La nariz (0) y puntos sin par quedan en su sitio.
+function mirrorLandmarks(lm) {
+  if (!lm) return null;
+  const out = new Array(lm.length);
+  const mir = (p) => (p ? { x: 1 - p.x, y: p.y, z: p.z, visibility: p.visibility } : p);
+  for (let i = 0; i < lm.length; i++) out[i] = mir(lm[i]);
+  for (const [a, b] of LR_PAIRS) {
+    out[a] = mir(lm[b]);
+    out[b] = mir(lm[a]);
+  }
+  return out;
+}
 
-// Compara contra la referencia probando también la versión espejada:
-// al practicar frente a una pantalla se suele copiar la coreografía en espejo
-// (el video levanta la derecha y la persona levanta la izquierda).
-function comparePoseMirrorAware(liveAngles, refAngles) {
-  const direct = compareAngles(liveAngles, refAngles);
-  if (!liveAngles) return direct;
-  const swapped = LR_SWAP.map((i) => liveAngles[i]);
-  const mirrored = compareAngles(swapped, refAngles);
+// Elige el mejor entre la comparación directa y la espejada (ya recalculadas).
+// Si gana la espejada, remapea worstIndex al lado real del cuerpo de la usuaria
+// para que "revisá el brazo derecho" nombre su brazo derecho de verdad.
+function bestOfMirror(featuresLive, featuresLiveMirror, refFeatures) {
+  const direct = compareFeatures(featuresLive, refFeatures);
+  const mirrored = compareFeatures(featuresLiveMirror, refFeatures);
   if (mirrored.score > direct.score) {
     return {
       score: mirrored.score,
-      // worstIndex viene en índices de la referencia; se mapea al lado del
-      // cuerpo de la usuaria para que el mensaje nombre SU brazo/pierna.
-      worstIndex: mirrored.worstIndex != null ? LR_SWAP[mirrored.worstIndex] : null,
+      worstIndex: mirrored.worstIndex != null ? FEATURE_LR_SWAP[mirrored.worstIndex] : null,
       worstDiff: mirrored.worstDiff,
     };
   }
   return direct;
+}
+
+// Compara los landmarks en vivo contra un vector de features de referencia,
+// probando también la versión espejada (al practicar frente a la pantalla se
+// suele copiar la coreografía en espejo). Recibe LANDMARKS (no features) porque
+// necesita espejar y recalcular sobre la pose espejada completa.
+function comparePoseMirrorAware(liveLm, refFeatures) {
+  if (!liveLm) return compareFeatures(null, refFeatures);
+  return bestOfMirror(
+    computeFeatures(liveLm),
+    computeFeatures(mirrorLandmarks(liveLm)),
+    refFeatures
+  );
 }
 
 // =========================================================
@@ -491,11 +570,13 @@ async function analyzeVideo(videoEl, onProgress) {
 
   for (let t = 0; t < duration; t += step) {
     await seekTo(videoEl, t);
-    let angles = JOINTS.map(() => null);
+    // El campo se sigue llamando `angles` por compatibilidad con coreos ya
+    // guardadas, pero ahora contiene el vector de FEATURES (ver computeFeatures).
+    let angles = FEATURES.map(() => null);
     try {
       const res = landmarker.detect(videoEl);
       if (res && res.landmarks && res.landmarks[0]) {
-        angles = computeAngles(res.landmarks[0]);
+        angles = computeFeatures(res.landmarks[0]);
       }
     } catch (err) {
       console.warn("detect() falló en t=", t, err);
@@ -591,9 +672,10 @@ let practiceState = {
   running: false,
   refIdx: 0, // caché del índice de pose de referencia más cercano
   disp: 0, // score suavizado mostrado
-  buckets: {}, // { segundo: { sum, n } }
+  buckets: {}, // { segundo: { sum, n, late, early, jointBad: {featureIdx: count} } }
   lastText: 0, // throttle de textos
   camStream: null,
+  speed: 1, // velocidad de reproducción de la referencia
 };
 
 const $$ = {
@@ -680,6 +762,7 @@ async function startPractice(choreo) {
   ref.src = practiceState.refUrl;
   ref.currentTime = 0;
   ref.pause();
+  applySpeed();
 
   // Estado de botones.
   if ($$.startBtn) $$.startBtn.disabled = false;
@@ -689,6 +772,31 @@ async function startPractice(choreo) {
 function wirePractice() {
   $$.startBtn?.addEventListener("click", onStartClick);
   $$.stopBtn?.addEventListener("click", () => finishPractice());
+  wireSpeed();
+}
+
+// Aplica la velocidad elegida al video de referencia, conservando el tono de la
+// música al ralentizar (preservesPitch + prefijos de compatibilidad).
+function applySpeed() {
+  const ref = $$.ref;
+  if (!ref) return;
+  ref.playbackRate = practiceState.speed || 1;
+  ref.preservesPitch = true;
+  ref.mozPreservesPitch = true;
+  ref.webkitPreservesPitch = true;
+}
+
+function wireSpeed() {
+  const sc = $("speed-control");
+  if (!sc) return;
+  const btns = sc.querySelectorAll("button[data-speed]");
+  btns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      practiceState.speed = parseFloat(btn.getAttribute("data-speed")) || 1;
+      btns.forEach((b) => b.classList.toggle("active", b === btn));
+      applySpeed(); // aplica al instante, incluso durante la práctica
+    });
+  });
 }
 
 async function onStartClick() {
@@ -716,6 +824,7 @@ async function onStartClick() {
   const ref = $$.ref;
   try {
     ref.currentTime = 0;
+    applySpeed();
     await ref.play();
   } catch (err) {
     console.error(err);
@@ -819,12 +928,19 @@ function loop() {
 
   drawSkeleton(live, choreo.accent);
 
-  const liveAngles = computeAngles(live);
+  // Features en vivo (directas y espejadas) UNA sola vez por frame; así la
+  // ventana de ritmo no recalcula el espejo 12+ veces.
+  const featuresLive = computeFeatures(live);
+  const featuresLiveMirror = computeFeatures(mirrorLandmarks(live));
   const t = ref.currentTime;
   const poses = choreo.poses;
 
   const { pose: nearest } = nearestPose(poses, t);
-  const onTime = comparePoseMirrorAware(liveAngles, nearest ? nearest.angles : null);
+  const onTime = bestOfMirror(
+    featuresLive,
+    featuresLiveMirror,
+    nearest ? nearest.angles : null
+  );
 
   // ---- Ritmo: mejor calce en ventana ±0.4s ----
   let best = onTime;
@@ -832,7 +948,7 @@ function loop() {
   for (let i = 0; i < poses.length; i++) {
     const p = poses[i];
     if (Math.abs(p.t - t) > 0.4) continue;
-    const cmp = comparePoseMirrorAware(liveAngles, p.angles);
+    const cmp = bestOfMirror(featuresLive, featuresLiveMirror, p.angles);
     if (cmp.score > best.score) {
       best = cmp;
       bestT = p.t;
@@ -840,45 +956,36 @@ function loop() {
   }
   const offset = bestT - t; // >0 adelantada, <0 tarde
 
-  // ---- Decisión de estado ----
+  // ---- Decisión de estado (cada frame, para acumular y para el texto) ----
   const worstLabel =
-    onTime.worstIndex != null ? JOINTS[onTime.worstIndex].label : null;
+    onTime.worstIndex != null ? FEATURES[onTime.worstIndex].label : null;
 
+  let state, lightClass, mainText, subText;
   if (best.score < 45) {
-    if (canUpdateText) {
-      setFeedback(
-        "state-wrong",
-        "red",
-        worstLabel ? `Revisá ${worstLabel}` : "Revisá la postura",
-        "el movimiento no coincide"
-      );
-      practiceState.lastText = now;
-    }
+    state = "state-wrong";
+    lightClass = "red";
+    mainText = worstLabel ? `Revisá ${worstLabel}` : "Revisá la postura";
+    subText = "el movimiento no coincide";
   } else if (Math.abs(offset) > 0.13) {
-    if (canUpdateText) {
-      setFeedback(
-        "state-timing",
-        "yellow",
-        offset > 0 ? "Vas adelantada ⏩" : "Vas tarde ⏪",
-        "ajustá al ritmo de la música"
-      );
-      practiceState.lastText = now;
-    }
+    state = "state-timing";
+    lightClass = "yellow";
+    mainText = offset > 0 ? "Vas adelantada ⏩" : "Vas tarde ⏪";
+    subText = "ajustá al ritmo de la música";
   } else if (onTime.score >= 65) {
-    if (canUpdateText) {
-      setFeedback("state-good", "green", "¡Muy bien! 🔥", "seguí así");
-      practiceState.lastText = now;
-    }
+    state = "state-good";
+    lightClass = "green";
+    mainText = "¡Muy bien! 🔥";
+    subText = "seguí así";
   } else {
-    if (canUpdateText) {
-      setFeedback(
-        "state-wrong",
-        "red",
-        worstLabel ? `Revisá ${worstLabel}` : "Revisá la postura",
-        "acomodá la postura"
-      );
-      practiceState.lastText = now;
-    }
+    state = "state-wrong";
+    lightClass = "red";
+    mainText = worstLabel ? `Revisá ${worstLabel}` : "Revisá la postura";
+    subText = "acomodá la postura";
+  }
+
+  if (canUpdateText) {
+    setFeedback(state, lightClass, mainText, subText);
+    practiceState.lastText = now;
   }
 
   // ---- Score suavizado (cada frame) ----
@@ -887,9 +994,18 @@ function loop() {
 
   // ---- Acumular por segundo (para el resumen) ----
   const sec = Math.floor(t);
-  if (!practiceState.buckets[sec]) practiceState.buckets[sec] = { sum: 0, n: 0 };
-  practiceState.buckets[sec].sum += onTime.score;
-  practiceState.buckets[sec].n += 1;
+  let bucket = practiceState.buckets[sec];
+  if (!bucket) {
+    bucket = practiceState.buckets[sec] = { sum: 0, n: 0, late: 0, early: 0, jointBad: {} };
+  }
+  bucket.sum += onTime.score;
+  bucket.n += 1;
+  if (state === "state-timing") {
+    if (offset < 0) bucket.late += 1;
+    else if (offset > 0) bucket.early += 1;
+  } else if (state === "state-wrong" && onTime.worstIndex != null) {
+    bucket.jointBad[onTime.worstIndex] = (bucket.jointBad[onTime.worstIndex] || 0) + 1;
+  }
 
   practiceState.raf = requestAnimationFrame(loop);
 }
@@ -958,12 +1074,52 @@ async function finishPractice() {
       li.textContent = "¡Ningún tramo flojo, felicitaciones! 🎉";
       tough.appendChild(li);
     } else {
-      for (const r of ranges.slice(0, 3)) {
-        const li = document.createElement("li");
-        li.textContent =
+      for (const r of ranges.slice(0, 6)) {
+        // Agrega los contadores de todos los segundos del tramo.
+        let late = 0;
+        let early = 0;
+        const jointAgg = {};
+        for (let s = r.start; s <= r.end; s++) {
+          const b = buckets[s];
+          if (!b) continue;
+          late += b.late || 0;
+          early += b.early || 0;
+          for (const k in b.jointBad || {}) {
+            jointAgg[k] = (jointAgg[k] || 0) + b.jointBad[k];
+          }
+        }
+        const timingTotal = late + early;
+        let jointTotal = 0;
+        let topIdx = null;
+        let topCount = -1;
+        for (const k in jointAgg) {
+          jointTotal += jointAgg[k];
+          if (jointAgg[k] > topCount) {
+            topCount = jointAgg[k];
+            topIdx = Number(k);
+          }
+        }
+
+        // Problema dominante del tramo.
+        let fix;
+        if (timingTotal > jointTotal) {
+          fix = late >= early ? "vas tarde" : "vas adelantada";
+        } else if (jointTotal > timingTotal && topIdx != null && FEATURES[topIdx]) {
+          fix = `revisá ${FEATURES[topIdx].label}`;
+        } else {
+          fix = "afiná este tramo"; // empate o sin datos claros
+        }
+
+        const timeTxt =
           r.start === r.end
             ? `en el ${fmtTime(r.start)}`
             : `${fmtTime(r.start)} – ${fmtTime(r.end + 1)}`;
+
+        const li = document.createElement("li");
+        li.innerHTML =
+          `<span class="tough-time">${timeTxt}</span>` +
+          `<span class="tough-sep">·</span>` +
+          `<span class="tough-fix">${escapeHtml(fix)}</span>`;
         tough.appendChild(li);
       }
     }

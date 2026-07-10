@@ -617,6 +617,46 @@ p { margin: 0; }
   gap: 8px;
 }
 
+/* ---------- Control de velocidad (segmentado) ---------- */
+.speed-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.speed-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.speed-control button {
+  appearance: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.speed-control button + button { border-left: none; }
+.speed-control button:first-of-type {
+  border-radius: var(--radius-ctrl) 0 0 var(--radius-ctrl);
+}
+.speed-control button:last-of-type {
+  border-radius: 0 var(--radius-ctrl) var(--radius-ctrl) 0;
+}
+.speed-control button:hover { background: var(--surface-2); }
+.speed-control button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.speed-control button.active + button { border-left: 1px solid var(--accent); }
+
 /* ---------- Banner de feedback ---------- */
 .feedback {
   display: flex;
@@ -849,6 +889,9 @@ p { margin: 0; }
   background: var(--accent-tint);
   border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
 }
+.tough-time { font-variant-numeric: tabular-nums; font-weight: 600; }
+.tough-sep { color: var(--text-2); opacity: 0.7; }
+.tough-fix { color: var(--accent); }
 
 /* =========================================================
    Toast
