@@ -64,6 +64,18 @@ export const tools: Tool[] = [
     fullPage: true,
   },
   {
+    slug: 'baila',
+    name: 'Baila 💃',
+    tagline: 'Practica coreografías frente a la cámara y recibe feedback de ritmo en vivo.',
+    description:
+      'Sube el video de una coreografía y practícala frente a tu webcam: la app compara tus movimientos con la referencia (IA de detección de pose) y te da un semáforo de ritmo en vivo — verde si vas bien, amarillo si vas tarde/adelantada, rojo si el movimiento no coincide. Todo corre en tu navegador.',
+    price: 0, // gratis y de libre acceso
+    category: 'Entretenimiento',
+    icon: '💃',
+    status: 'available',
+    fullPage: true,
+  },
+  {
     slug: 'demo-gratis',
     name: 'Herramienta Demo (Gratis)',
     tagline: 'Ejemplo gratuito para probar el sistema de cuentas y acceso.',

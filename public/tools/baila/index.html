@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Baila — practica tu coreografía</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- ================= HEADER ================= -->
+    <header class="topbar">
+      <div class="brand" id="brand-home">
+        <div class="brand-mark"><span>💃</span></div>
+        <div>
+          <div class="brand-name">Baila</div>
+          <div class="brand-sub">tus coreografías</div>
+        </div>
+      </div>
+      <div id="model-status" class="chip chip-loading">
+        <span class="spinner"></span> cargando cámara…
+      </div>
+    </header>
+
+    <!-- ================= VISTA: BIBLIOTECA ================= -->
+    <section id="view-library" class="view">
+      <div class="view-head">
+        <h2>Tus coreografías</h2>
+        <p class="muted">Elige una para practicar, o añade una nueva subiendo su video de referencia.</p>
+      </div>
+      <div id="library-grid" class="grid">
+        <!-- tarjetas inyectadas por JS + tarjeta "añadir" -->
+      </div>
+      <div id="library-empty" class="empty hidden">
+        <div class="empty-icon">🎬</div>
+        <p>Todavía no tienes coreografías.<br>Añade la primera con el botón de arriba.</p>
+      </div>
+    </section>
+
+    <!-- ================= VISTA: AÑADIR ================= -->
+    <section id="view-add" class="view hidden">
+      <button class="back" data-goto="library">← Volver</button>
+      <div class="view-head">
+        <h2>Añadir coreografía</h2>
+        <p class="muted">Sube el video donde la coreografía está bien hecha. Se analiza una sola vez y queda guardada en esta laptop.</p>
+      </div>
+
+      <div class="add-card">
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="add-file" accept="video/*" hidden />
+          <div id="dropzone-empty">
+            <div class="dz-icon">📁</div>
+            <div class="dz-title">Elegir video…</div>
+            <div class="dz-sub">o arrástralo aquí</div>
+          </div>
+          <video id="add-preview" class="dz-preview hidden" playsinline muted></video>
+        </label>
+
+        <div class="add-fields">
+          <label class="field">
+            <span>Nombre de la coreografía</span>
+            <input type="text" id="add-name" placeholder="Coreo clase — salsa" />
+          </label>
+
+          <div id="add-progress" class="progress hidden">
+            <div class="progress-top">
+              <span id="add-progress-label">Analizando la coreografía…</span>
+              <span id="add-progress-pct">0%</span>
+            </div>
+            <div class="progress-track"><div id="add-progress-bar" class="progress-fill"></div></div>
+            <p class="muted small">Extrayendo los movimientos y sus tiempos. Puede tardar según la duración del video.</p>
+          </div>
+
+          <button id="add-save" class="btn primary" disabled>Analizar y guardar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VISTA: PRÁCTICA ================= -->
+    <section id="view-practice" class="view hidden">
+      <button class="back" data-goto="library">← Volver a la biblioteca</button>
+      <div class="practice-head">
+        <h2 id="practice-title">Coreografía</h2>
+        <div class="practice-actions">
+          <button id="start-btn" class="btn primary">▶ Empezar</button>
+          <button id="stop-btn" class="btn" disabled>■ Detener</button>
+        </div>
+      </div>
+
+      <!-- Banner de feedback -->
+      <div id="feedback" class="feedback">
+        <div id="light" class="light gray"></div>
+        <div class="feedback-text">
+          <div id="feedback-main" class="feedback-main">Ponte frente a la cámara</div>
+          <div id="feedback-sub" class="feedback-sub">Pulsa «Empezar» cuando estés lista</div>
+        </div>
+        <div class="score-ring" id="score-ring">
+          <div class="score-num" id="score-num">--</div>
+          <div class="score-cap">precisión</div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="cam-wrap">
+          <video id="cam" playsinline muted></video>
+          <canvas id="overlay"></canvas>
+          <div id="countdown" class="countdown hidden"></div>
+        </div>
+        <div class="ref-wrap">
+          <div class="ref-label">Referencia</div>
+          <video id="ref-play" playsinline class="ref-video"></video>
+        </div>
+      </div>
+
+      <!-- Resumen final -->
+      <div id="summary" class="summary hidden">
+        <h3>Cómo te fue</h3>
+        <div class="summary-metrics">
+          <div class="metric">
+            <div class="metric-num" id="sum-avg">--</div>
+            <div class="metric-cap">precisión promedio</div>
+          </div>
+          <div class="metric">
+            <div class="metric-num" id="sum-best">--</div>
+            <div class="metric-cap">tu mejor marca</div>
+          </div>
+        </div>
+        <p class="muted" id="sum-hint"></p>
+        <h4>Partes para repetir 🔁</h4>
+        <ul id="tough-list" class="tough-list"></ul>
+      </div>
+    </section>
+  </div>
+
+  <footer class="foot">
+    Corre 100% en tu laptop · los videos se guardan solo aquí · necesita internet la primera vez para cargar el modelo.
+  </footer>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
