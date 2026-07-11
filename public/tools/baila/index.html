@@ -87,10 +87,20 @@
           <button type="button" data-speed="0.75">0.75x</button>
           <button type="button" data-speed="1" class="active">1x</button>
         </div>
+        <div class="rec-control" id="rec-control">
+          <label class="rec-toggle"><input type="checkbox" id="rec-enabled" checked> Grabar mi intento</label>
+          <label class="rec-toggle"><input type="checkbox" id="rec-skeleton"> con esqueleto</label>
+        </div>
         <div class="practice-actions">
           <button id="start-btn" class="btn primary">▶ Empezar</button>
           <button id="stop-btn" class="btn" disabled>■ Detener</button>
         </div>
+      </div>
+
+      <!-- Barra del bucle (repetir un tramo) -->
+      <div id="loop-bar" class="loop-bar hidden">
+        <span class="loop-info" id="loop-info">🔁 Repitiendo</span>
+        <button type="button" id="loop-exit" class="btn">Salir del bucle</button>
       </div>
 
       <!-- Banner de feedback -->
@@ -134,6 +144,11 @@
         <p class="muted" id="sum-hint"></p>
         <h4>Partes para repetir 🔁</h4>
         <ul id="tough-list" class="tough-list"></ul>
+        <div id="review" class="review hidden">
+          <h4>Tu intento 🎬</h4>
+          <video id="review-video" class="review-video" controls playsinline></video>
+          <a id="review-download" class="btn" download="mi-intento.webm">⬇ Guardar en mi dispositivo</a>
+        </div>
       </div>
     </section>
   </div>

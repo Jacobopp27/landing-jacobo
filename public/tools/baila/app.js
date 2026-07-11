@@ -731,6 +731,23 @@ let practiceState = {
   lastText: 0, // throttle de textos
   camStream: null,
   speed: 1, // velocidad de reproducción de la referencia
+  loop: null, // { start, end } en segundos cuando se repite un tramo; null si no
+  loopCount: 0, // repeticiones completadas en el bucle actual
+  loopBest: 0, // mejor puntaje entre las repeticiones del bucle
+  loopSum: 0, // acumulador de la repetición en curso
+  loopN: 0,
+  // ---- Grabación del intento ----
+  recEnabled: true, // toggle "grabar mi intento" (default on)
+  recWithSkeleton: false, // toggle "incluir esqueleto" (se fija al arrancar)
+  recording: false, // hay una grabación en curso
+  recorder: null, // MediaRecorder activo
+  recChunks: [], // trozos de datos acumulados
+  recStream: null, // stream que alimenta al recorder (canvas o cámara)
+  recCanvas: null, // canvas compuesto en memoria
+  recCtx: null, // contexto 2d del canvas de grabación
+  recMime: "", // mime elegido (para la extensión)
+  recBlob: null, // blob final
+  recUrl: null, // objectURL del blob (para <video> y descarga)
 };
 
 const $$ = {
@@ -747,6 +764,11 @@ const $$ = {
   get summary() { return $("summary"); },
   get startBtn() { return $("start-btn"); },
   get stopBtn() { return $("stop-btn"); },
+  get recEnabled() { return $("rec-enabled"); },
+  get recSkeleton() { return $("rec-skeleton"); },
+  get review() { return $("review"); },
+  get reviewVideo() { return $("review-video"); },
+  get reviewDownload() { return $("review-download"); },
 };
 
 function setFeedback(state, lightClass, main, sub) {
@@ -769,13 +791,10 @@ function resetFeedbackIdle() {
   if ($$.scoreNum) $$.scoreNum.textContent = "--";
 }
 
-async function startPractice(choreo) {
-  practiceState.choreo = choreo;
-  showView("practice");
-  if ($$.title) $$.title.textContent = choreo.name || "Coreografía";
-  $$.summary?.classList.add("hidden");
-  resetFeedbackIdle();
-
+// Enciende la cámara y prepara el video de referencia. Devuelve true si todo ok.
+// Se reutiliza tanto en la práctica completa como al entrar en un bucle desde el
+// resumen (donde la cámara quedó apagada).
+async function setupCameraAndRef(choreo) {
   // Cambiar el modelo a modo VIDEO para la detección en vivo.
   try {
     await setMode("VIDEO");
@@ -806,7 +825,7 @@ async function startPractice(choreo) {
     console.error(err);
     toast("Necesito acceso a la cámara para practicar. Actívala y vuelve a intentar.");
     leaveToLibrary();
-    return;
+    return false;
   }
 
   // Video de referencia (con su audio = la música). NO se mutea.
@@ -818,6 +837,20 @@ async function startPractice(choreo) {
   ref.currentTime = 0;
   ref.pause();
   applySpeed();
+  return true;
+}
+
+async function startPractice(choreo) {
+  practiceState.choreo = choreo;
+  practiceState.loop = null; // práctica completa, no bucle
+  hideLoopBar();
+  showView("practice");
+  if ($$.title) $$.title.textContent = choreo.name || "Coreografía";
+  $$.summary?.classList.add("hidden");
+  resetFeedbackIdle();
+
+  const ok = await setupCameraAndRef(choreo);
+  if (!ok) return;
 
   // Estado de botones.
   if ($$.startBtn) $$.startBtn.disabled = false;
@@ -826,8 +859,31 @@ async function startPractice(choreo) {
 
 function wirePractice() {
   $$.startBtn?.addEventListener("click", onStartClick);
-  $$.stopBtn?.addEventListener("click", () => finishPractice());
+  $$.stopBtn?.addEventListener("click", () => {
+    if (practiceState.loop) exitLoop();
+    else finishPractice();
+  });
+  $("loop-exit")?.addEventListener("click", exitLoop);
   wireSpeed();
+  wireRecording();
+}
+
+// Cablea los toggles de grabación. El estado se lee al arrancar la práctica.
+function wireRecording() {
+  const en = $$.recEnabled;
+  const sk = $$.recSkeleton;
+  if (en) {
+    practiceState.recEnabled = en.checked;
+    en.addEventListener("change", () => {
+      practiceState.recEnabled = en.checked;
+    });
+  }
+  if (sk) {
+    practiceState.recWithSkeleton = sk.checked;
+    sk.addEventListener("change", () => {
+      practiceState.recWithSkeleton = sk.checked;
+    });
+  }
 }
 
 // Aplica la velocidad elegida al video de referencia, conservando el tono de la
@@ -856,9 +912,12 @@ function wireSpeed() {
 
 async function onStartClick() {
   if (practiceState.running) return;
+  practiceState.loop = null; // botón «Empezar» = práctica completa
+  hideLoopBar();
   const cd = $$.countdown;
   if ($$.startBtn) $$.startBtn.disabled = true;
   $$.summary?.classList.add("hidden");
+  hideReview(); // limpia la revisión del intento anterior
 
   // Cuenta regresiva 3, 2, 1.
   if (cd) {
@@ -888,9 +947,116 @@ async function onStartClick() {
     return;
   }
 
+  // Grabación del intento (solo práctica completa, nunca en bucle).
+  practiceState.recEnabled = !$$.recEnabled || $$.recEnabled.checked;
+  if (practiceState.recEnabled && practiceState.camStream) {
+    startRecording();
+  } else {
+    practiceState.recording = false;
+  }
+
   practiceState.running = true;
   if ($$.stopBtn) $$.stopBtn.disabled = false;
   practiceState.raf = requestAnimationFrame(loop);
+}
+
+// ---- Bucle de un tramo (repetir los segundos difíciles) ----
+
+function hideLoopBar() {
+  $("loop-bar")?.classList.add("hidden");
+}
+
+function updateLoopBar(thisScore) {
+  const info = $("loop-info");
+  if (!info || !practiceState.loop) return;
+  const { start, end } = practiceState.loop;
+  const rango = `${fmtTime(start)} – ${fmtTime(end)}`;
+  if (practiceState.loopCount === 0) {
+    info.textContent = `🔁 Repitiendo ${rango}`;
+  } else {
+    info.textContent =
+      `🔁 ${rango} · repetición ${practiceState.loopCount}` +
+      ` · esta vez ${thisScore}% · mejor ${practiceState.loopBest}%`;
+  }
+}
+
+// Entra al modo bucle sobre [startSec, endSec]. Se llama desde el resumen, donde
+// la cámara ya se apagó, así que la volvemos a encender.
+async function startLoop(startSec, endSec) {
+  const choreo = practiceState.choreo;
+  if (!choreo) return;
+  if (practiceState.running) return;
+
+  const dur = choreo.duration || endSec;
+  const start = Math.max(0, Math.min(startSec, dur - 0.2));
+  const end = Math.max(start + 0.2, Math.min(endSec, dur));
+
+  practiceState.loop = { start, end };
+  practiceState.loopCount = 0;
+  practiceState.loopBest = 0;
+  practiceState.loopSum = 0;
+  practiceState.loopN = 0;
+  practiceState.refIdx = 0;
+  practiceState.disp = 0;
+  practiceState.lastText = 0;
+
+  $$.summary?.classList.add("hidden");
+  hideReview(); // el bucle no graba: oculta la revisión del run previo
+  abortRecording(); // por si quedara algún recorder colgando
+  resetFeedbackIdle();
+
+  const ok = await setupCameraAndRef(choreo);
+  if (!ok) return;
+
+  // Mostrar la barra del bucle.
+  const bar = $("loop-bar");
+  if (bar) bar.classList.remove("hidden");
+  updateLoopBar(0);
+
+  // Cuenta regresiva y arranque en el inicio del tramo.
+  const cd = $$.countdown;
+  if (cd) {
+    cd.classList.remove("hidden");
+    for (const n of [3, 2, 1]) {
+      cd.textContent = String(n);
+      await sleep(1000);
+    }
+    cd.classList.add("hidden");
+  }
+
+  const ref = $$.ref;
+  try {
+    ref.currentTime = start;
+    applySpeed();
+    await ref.play();
+  } catch (err) {
+    console.error(err);
+    toast("No se pudo reproducir el tramo.");
+    exitLoop();
+    return;
+  }
+
+  practiceState.running = true;
+  if ($$.startBtn) $$.startBtn.disabled = true;
+  if ($$.stopBtn) $$.stopBtn.disabled = false;
+  practiceState.raf = requestAnimationFrame(loop);
+}
+
+// Sale del bucle y vuelve a mostrar el resumen (que sigue poblado).
+function exitLoop() {
+  if (practiceState.raf) cancelAnimationFrame(practiceState.raf);
+  practiceState.raf = null;
+  practiceState.running = false;
+  practiceState.loop = null;
+  const ref = $$.ref;
+  if (ref) ref.pause();
+  stopCamera();
+  hideLoopBar();
+  const cd = $$.countdown;
+  if (cd) cd.classList.add("hidden");
+  $$.summary?.classList.remove("hidden");
+  if ($$.startBtn) $$.startBtn.disabled = false;
+  if ($$.stopBtn) $$.stopBtn.disabled = true;
 }
 
 // Busca la pose de referencia más cercana en el tiempo, cacheando el índice.
@@ -949,13 +1115,315 @@ function drawSkeleton(landmarks, accent) {
   }
 }
 
+// =========================================================
+// Grabación del intento (canvas compuesto)
+// =========================================================
+
+// Preferimos mp4 (mejor compatibilidad iOS/QuickTime); si no, webm.
+const REC_MIME_CANDIDATES = [
+  "video/mp4;codecs=h264",
+  "video/mp4",
+  "video/webm;codecs=vp9",
+  "video/webm;codecs=vp8",
+  "video/webm",
+];
+
+// Colores del semáforo para el overlay grabado (independientes del CSS).
+const REC_LIGHT_COLORS = {
+  green: "#22C55E",
+  yellow: "#F5A524",
+  red: "#EF4444",
+  gray: "#9AA0A6",
+};
+
+// Oculta la sección de revisión y libera el objectURL previo.
+function hideReview() {
+  const sec = $$.review;
+  if (sec) sec.classList.add("hidden");
+  const vid = $$.reviewVideo;
+  if (vid) vid.removeAttribute("src");
+  if (practiceState.recUrl) {
+    URL.revokeObjectURL(practiceState.recUrl);
+    practiceState.recUrl = null;
+  }
+  practiceState.recBlob = null;
+}
+
+// Rellena y muestra la sección "Tu intento" con el blob grabado; si no hay,
+// deja la sección oculta. Libera recorder/stream una vez usados.
+function showReview(blob) {
+  // Ya no necesitamos el recorder ni el stream.
+  practiceState.recorder = null;
+  practiceState.recStream = null;
+  practiceState.recChunks = [];
+
+  const sec = $$.review;
+  const vid = $$.reviewVideo;
+  const dl = $$.reviewDownload;
+  if (!blob || !sec || !vid || !dl) {
+    if (sec) sec.classList.add("hidden");
+    return;
+  }
+  if (practiceState.recUrl) URL.revokeObjectURL(practiceState.recUrl);
+  practiceState.recBlob = blob;
+  practiceState.recUrl = URL.createObjectURL(blob);
+
+  const ext = (practiceState.recMime || blob.type || "").includes("mp4") ? "mp4" : "webm";
+  vid.src = practiceState.recUrl;
+  dl.href = practiceState.recUrl;
+  dl.setAttribute("download", `mi-intento.${ext}`);
+  sec.classList.remove("hidden");
+}
+
+// Crea/redimensiona el canvas de grabación al aspecto de la cámara, con alto ≤480.
+function ensureRecCanvas() {
+  const cam = $$.cam;
+  if (!cam || !cam.videoWidth || !cam.videoHeight) return null;
+  const maxH = 480;
+  const scale = Math.min(1, maxH / cam.videoHeight);
+  const W = Math.round(cam.videoWidth * scale);
+  const H = Math.round(cam.videoHeight * scale);
+  if (!practiceState.recCanvas) {
+    practiceState.recCanvas = document.createElement("canvas");
+    practiceState.recCtx = practiceState.recCanvas.getContext("2d");
+  }
+  if (practiceState.recCanvas.width !== W || practiceState.recCanvas.height !== H) {
+    practiceState.recCanvas.width = W;
+    practiceState.recCanvas.height = H;
+  }
+  return practiceState.recCanvas;
+}
+
+// Pinta un frame del canvas de grabación: cámara espejada (+ esqueleto opcional)
+// y, sin espejar, el semáforo con el texto principal para que se lea normal.
+function drawRecordFrame(live, state, lightClass, mainText) {
+  const canvas = practiceState.recCanvas;
+  const ctx = practiceState.recCtx;
+  const cam = $$.cam;
+  if (!canvas || !ctx || !cam) return;
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // ---- Capa espejada: cámara + (opcional) esqueleto ----
+  ctx.save();
+  ctx.translate(W, 0);
+  ctx.scale(-1, 1);
+  try {
+    ctx.drawImage(cam, 0, 0, W, H);
+  } catch (_) {
+    // Si el frame no está listo, dejamos lo anterior.
+  }
+  if (practiceState.recWithSkeleton && live) {
+    ctx.lineWidth = Math.max(2, W * 0.006);
+    ctx.strokeStyle = "rgba(255,255,255,0.72)";
+    ctx.lineCap = "round";
+    for (const [a, b] of CONNECTIONS) {
+      const pa = live[a];
+      const pb = live[b];
+      if (!pa || !pb) continue;
+      if ((pa.visibility ?? 1) < VIS_MIN || (pb.visibility ?? 1) < VIS_MIN) continue;
+      ctx.beginPath();
+      ctx.moveTo(pa.x * W, pa.y * H);
+      ctx.lineTo(pb.x * W, pb.y * H);
+      ctx.stroke();
+    }
+    const accent = practiceState.choreo?.accent || "#7C5CFF";
+    const r = Math.max(3, W * 0.008);
+    ctx.fillStyle = accent;
+    for (const p of live) {
+      if (!p || (p.visibility ?? 1) < VIS_MIN) continue;
+      ctx.beginPath();
+      ctx.arc(p.x * W, p.y * H, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // ---- Capa de feedback (sin espejar, esquina inferior izquierda) ----
+  const dotR = Math.max(7, W * 0.018);
+  const pad = Math.max(10, W * 0.02);
+  const fontSize = Math.max(14, Math.round(W * 0.038));
+  ctx.font = `600 ${fontSize}px -apple-system, system-ui, sans-serif`;
+  ctx.textBaseline = "middle";
+  const text = mainText || "";
+  const textW = ctx.measureText(text).width;
+  const cy = H - pad - dotR;
+  const gap = dotR * 0.9;
+  const boxH = dotR * 2 + pad * 0.5;
+  const boxW = dotR * 2 + gap + textW + pad;
+
+  // Fondo semitransparente para legibilidad sobre cualquier imagen.
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  const boxY = cy - boxH / 2;
+  const boxX = pad - dotR * 0.5;
+  const rad = Math.min(boxH / 2, 14);
+  ctx.beginPath();
+  ctx.moveTo(boxX + rad, boxY);
+  ctx.arcTo(boxX + boxW, boxY, boxX + boxW, boxY + boxH, rad);
+  ctx.arcTo(boxX + boxW, boxY + boxH, boxX, boxY + boxH, rad);
+  ctx.arcTo(boxX, boxY + boxH, boxX, boxY, rad);
+  ctx.arcTo(boxX, boxY, boxX + boxW, boxY, rad);
+  ctx.closePath();
+  ctx.fill();
+
+  // Semáforo.
+  const dotX = pad + dotR;
+  ctx.fillStyle = REC_LIGHT_COLORS[lightClass] || REC_LIGHT_COLORS.gray;
+  ctx.beginPath();
+  ctx.arc(dotX, cy, dotR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Texto principal en blanco con sombra.
+  ctx.fillStyle = "#FFFFFF";
+  ctx.shadowColor = "rgba(0,0,0,0.7)";
+  ctx.shadowBlur = 4;
+  ctx.fillText(text, dotX + dotR + gap, cy);
+  ctx.shadowBlur = 0;
+}
+
+// Arranca la grabación del intento. No lanza: si algo falla, avisa y sigue.
+function startRecording() {
+  practiceState.recording = false;
+  practiceState.recChunks = [];
+  practiceState.recBlob = null;
+  practiceState.recWithSkeleton = !!($$.recSkeleton && $$.recSkeleton.checked);
+
+  if (typeof MediaRecorder === "undefined") {
+    toast("Tu navegador no permite grabar el intento.");
+    return;
+  }
+  const canvas = ensureRecCanvas();
+  if (!canvas) {
+    toast("No se pudo preparar la grabación del intento.");
+    return;
+  }
+
+  // Stream: preferimos el canvas compuesto; respaldo a la cámara cruda.
+  let stream = null;
+  try {
+    if (typeof canvas.captureStream === "function") {
+      stream = canvas.captureStream(30);
+    }
+  } catch (_) {}
+  if (!stream) {
+    if (practiceState.camStream) {
+      stream = practiceState.camStream; // respaldo: cámara sin overlays
+    } else {
+      toast("Tu navegador no permite grabar el intento.");
+      return;
+    }
+  }
+  practiceState.recStream = stream;
+
+  // Mime soportado.
+  let mime = "";
+  for (const m of REC_MIME_CANDIDATES) {
+    if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) {
+      mime = m;
+      break;
+    }
+  }
+  practiceState.recMime = mime;
+
+  try {
+    practiceState.recorder = mime
+      ? new MediaRecorder(stream, { mimeType: mime })
+      : new MediaRecorder(stream);
+  } catch (err) {
+    console.warn("MediaRecorder falló:", err);
+    toast("Tu navegador no permite grabar el intento.");
+    practiceState.recorder = null;
+    return;
+  }
+
+  practiceState.recorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) practiceState.recChunks.push(e.data);
+  };
+  try {
+    practiceState.recorder.start();
+    practiceState.recording = true;
+  } catch (err) {
+    console.warn("No se pudo iniciar la grabación:", err);
+    toast("Tu navegador no permite grabar el intento.");
+    practiceState.recorder = null;
+    practiceState.recording = false;
+  }
+}
+
+// Detiene el recorder y resuelve con el Blob final (o null si no había datos).
+function stopRecordingAndBuild() {
+  return new Promise((resolve) => {
+    const rec = practiceState.recorder;
+    practiceState.recording = false;
+    if (!rec) {
+      resolve(null);
+      return;
+    }
+    if (rec.state === "inactive") {
+      const blob = practiceState.recChunks.length
+        ? new Blob(practiceState.recChunks, { type: practiceState.recMime || "video/webm" })
+        : null;
+      resolve(blob);
+      return;
+    }
+    rec.onstop = () => {
+      const blob = practiceState.recChunks.length
+        ? new Blob(practiceState.recChunks, { type: practiceState.recMime || "video/webm" })
+        : null;
+      resolve(blob);
+    };
+    try {
+      rec.requestData?.();
+    } catch (_) {}
+    try {
+      rec.stop();
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+// Aborta cualquier grabación en curso sin construir blob (al salir/entrar bucle).
+function abortRecording() {
+  const rec = practiceState.recorder;
+  if (rec && rec.state !== "inactive") {
+    rec.ondataavailable = null;
+    rec.onstop = null;
+    try { rec.stop(); } catch (_) {}
+  }
+  practiceState.recorder = null;
+  practiceState.recStream = null;
+  practiceState.recChunks = [];
+  practiceState.recording = false;
+}
+
 function loop() {
   if (!practiceState.running) return;
   const ref = $$.ref;
   const cam = $$.cam;
   const choreo = practiceState.choreo;
 
-  if (ref.paused || ref.ended) {
+  if (practiceState.loop) {
+    // Modo bucle: al llegar al final del tramo, cerramos la repetición y
+    // volvemos al inicio en vez de terminar.
+    if (ref.ended || ref.currentTime >= practiceState.loop.end) {
+      const thisScore = practiceState.loopN
+        ? Math.round(practiceState.loopSum / practiceState.loopN)
+        : 0;
+      practiceState.loopCount += 1;
+      if (thisScore > practiceState.loopBest) practiceState.loopBest = thisScore;
+      practiceState.loopSum = 0;
+      practiceState.loopN = 0;
+      practiceState.refIdx = 0;
+      updateLoopBar(thisScore);
+      try {
+        ref.currentTime = practiceState.loop.start;
+        if (ref.paused) ref.play();
+      } catch (_) {}
+      practiceState.raf = requestAnimationFrame(loop);
+      return;
+    }
+  } else if (ref.paused || ref.ended) {
     finishPractice();
     return;
   }
@@ -973,6 +1441,9 @@ function loop() {
 
   if (!live) {
     drawSkeleton(null, choreo.accent);
+    if (practiceState.recording && !practiceState.loop) {
+      drawRecordFrame(null, "state-idle", "gray", "No te veo 👀");
+    }
     if (canUpdateText) {
       setFeedback("state-idle", "gray", "No te veo 👀", "acomódate para salir completa en cámara");
       practiceState.lastText = now;
@@ -1038,6 +1509,10 @@ function loop() {
     subText = "acomodá la postura";
   }
 
+  if (practiceState.recording && !practiceState.loop) {
+    drawRecordFrame(live, state, lightClass, mainText);
+  }
+
   if (canUpdateText) {
     setFeedback(state, lightClass, mainText, subText);
     practiceState.lastText = now;
@@ -1046,6 +1521,12 @@ function loop() {
   // ---- Score suavizado (cada frame) ----
   practiceState.disp = practiceState.disp * 0.8 + onTime.score * 0.2;
   if ($$.scoreNum) $$.scoreNum.textContent = String(Math.round(practiceState.disp));
+
+  // ---- Acumular el puntaje de la repetición en curso (modo bucle) ----
+  if (practiceState.loop) {
+    practiceState.loopSum += onTime.score;
+    practiceState.loopN += 1;
+  }
 
   // ---- Acumular por segundo (para el resumen) ----
   const sec = Math.floor(t);
@@ -1073,8 +1554,22 @@ async function finishPractice() {
   const ref = $$.ref;
   ref.pause();
 
+  // Detener la grabación y obtener el blob ANTES de apagar la cámara (así el
+  // último frame del canvas stream no queda congelado prematuramente).
+  let recBlob = null;
+  if (practiceState.recording || practiceState.recorder) {
+    try {
+      recBlob = await stopRecordingAndBuild();
+    } catch (err) {
+      console.warn("No se pudo cerrar la grabación:", err);
+    }
+  }
+
   // Apagar cámara.
   stopCamera();
+
+  // Rellenar la sección "Tu intento" si hubo grabación.
+  showReview(recBlob);
 
   const choreo = practiceState.choreo;
   const buckets = practiceState.buckets;
@@ -1175,6 +1670,15 @@ async function finishPractice() {
           `<span class="tough-time">${timeTxt}</span>` +
           `<span class="tough-sep">·</span>` +
           `<span class="tough-fix">${escapeHtml(fix)}</span>`;
+        // Botón para practicar ese tramo en bucle.
+        const rep = document.createElement("button");
+        rep.type = "button";
+        rep.className = "tough-repeat";
+        rep.textContent = "🔁 Repetir";
+        const loopStart = r.start;
+        const loopEnd = r.end + 1; // el tramo mostrado llega hasta end+1
+        rep.addEventListener("click", () => startLoop(loopStart, loopEnd));
+        li.appendChild(rep);
         tough.appendChild(li);
       }
     }
@@ -1199,6 +1703,7 @@ function stopPracticeHard() {
   if (practiceState.raf) cancelAnimationFrame(practiceState.raf);
   practiceState.raf = null;
   practiceState.running = false;
+  practiceState.loop = null;
   const ref = $$.ref;
   if (ref) {
     ref.pause();
@@ -1210,6 +1715,9 @@ function stopPracticeHard() {
     practiceState.refUrl = null;
   }
   stopCamera();
+  abortRecording();
+  hideReview();
+  hideLoopBar();
   const cd = $$.countdown;
   if (cd) cd.classList.add("hidden");
 }
