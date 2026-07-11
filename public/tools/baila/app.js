@@ -531,39 +531,94 @@ function resetAddForm() {
   refreshAddSaveState();
 }
 
-// seekTo: coloca el video en t y resuelve cuando el frame está disponible.
+// seekTo: coloca el video en t y resuelve cuando hay un fotograma decodificado.
+// En iOS/Safari el evento "seeked" no garantiza que el frame esté pintado, así que
+// además esperamos un requestVideoFrameCallback (con timeouts de respaldo para no
+// colgarnos si el evento no dispara, p.ej. cuando el tiempo no cambia por redondeo).
 function seekTo(video, t) {
   return new Promise((resolve) => {
-    const onSeeked = () => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
       video.removeEventListener("seeked", onSeeked);
       resolve();
     };
+    const onSeeked = () => {
+      if (typeof video.requestVideoFrameCallback === "function") {
+        video.requestVideoFrameCallback(() => finish());
+        setTimeout(finish, 250); // respaldo si rVFC no dispara al hacer seek
+      } else {
+        requestAnimationFrame(() => requestAnimationFrame(finish));
+      }
+    };
     video.addEventListener("seeked", onSeeked);
-    // Clamp para no pasarse del final.
-    video.currentTime = Math.min(t, Math.max(0, (video.duration || 0) - 0.001));
+    const dur = isFinite(video.duration) ? video.duration : 0;
+    video.currentTime = Math.min(t, Math.max(0, dur - 0.05));
+    // Si el tiempo no cambia, "seeked" no dispara: forzamos la resolución.
+    setTimeout(() => { if (!settled) onSeeked(); }, 500);
   });
 }
 
-function whenMetadata(video) {
+// Espera a tener metadata (readyState >= HAVE_METADATA), con respaldo por si
+// el evento ya disparó o el navegador se demora.
+function whenMetadataBasic(video) {
   return new Promise((resolve) => {
-    if (video.readyState >= 1 && video.duration && isFinite(video.duration)) {
-      resolve();
-    } else {
-      const on = () => {
-        video.removeEventListener("loadedmetadata", on);
-        resolve();
-      };
-      video.addEventListener("loadedmetadata", on);
-    }
+    if (video.readyState >= 1) { resolve(); return; }
+    const on = () => { video.removeEventListener("loadedmetadata", on); resolve(); };
+    video.addEventListener("loadedmetadata", on);
+    setTimeout(resolve, 5000);
   });
+}
+
+// Devuelve una duración válida. iOS/Safari a veces reporta Infinity/NaN hasta que
+// se hace un seek al final; en ese caso saltamos muy lejos para forzar el cálculo.
+async function ensureDuration(video) {
+  await whenMetadataBasic(video);
+  if (isFinite(video.duration) && video.duration > 0) return video.duration;
+  return await new Promise((resolve) => {
+    let settled = false;
+    const done = (d) => {
+      if (settled) return;
+      settled = true;
+      video.removeEventListener("durationchange", onChange);
+      video.removeEventListener("timeupdate", onChange);
+      resolve(d);
+    };
+    const onChange = () => {
+      if (isFinite(video.duration) && video.duration > 0) done(video.duration);
+    };
+    video.addEventListener("durationchange", onChange);
+    video.addEventListener("timeupdate", onChange);
+    try { video.currentTime = 1e7; } catch (_) {}
+    setTimeout(() => done(isFinite(video.duration) ? video.duration : 0), 3000);
+  });
+}
+
+// Reproduce y pausa el video para que iOS decodifique fotogramas antes de hacer
+// seeks (sin esto, en Safari los seeks devuelven cuadros en blanco a detect()).
+async function primeDecoder(video) {
+  try {
+    video.muted = true;
+    video.playsInline = true;
+    const p = video.play();
+    if (p && typeof p.then === "function") await p;
+    video.pause();
+  } catch (_) {
+    // iOS puede bloquear el play fuera de un gesto; seguimos igual.
+  }
 }
 
 // Analiza el video muestreando ~15 fps. Devuelve { poses, duration, thumb }.
 async function analyzeVideo(videoEl, onProgress) {
   await setMode("IMAGE");
-  await whenMetadata(videoEl);
-  const duration = videoEl.duration;
+  await whenMetadataBasic(videoEl);
+  // iOS necesita que el video se haya reproducido para decodificar fotogramas.
+  await primeDecoder(videoEl);
+  const duration = await ensureDuration(videoEl);
   if (!duration || !isFinite(duration)) throw new Error("Duración inválida");
+  // Tras el truco de duración el video queda al final; volvemos al inicio.
+  await seekTo(videoEl, 0);
 
   const step = 1 / 15;
   const poses = [];
