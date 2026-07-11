@@ -919,6 +919,16 @@ async function onStartClick() {
   $$.summary?.classList.add("hidden");
   hideReview(); // limpia la revisión del intento anterior
 
+  // Reasegurar la cámara: al terminar un intento, finishPractice la apaga.
+  // Sin esto, volver a pulsar «Empezar» corría sin cámara (había que refrescar).
+  if (!practiceState.camStream) {
+    const ok = await setupCameraAndRef(practiceState.choreo);
+    if (!ok) {
+      if ($$.startBtn) $$.startBtn.disabled = false;
+      return;
+    }
+  }
+
   // Cuenta regresiva 3, 2, 1.
   if (cd) {
     cd.classList.remove("hidden");
@@ -1186,6 +1196,12 @@ function ensureRecCanvas() {
   if (!practiceState.recCanvas) {
     practiceState.recCanvas = document.createElement("canvas");
     practiceState.recCtx = practiceState.recCanvas.getContext("2d");
+    // Safari solo captura el stream de un canvas que esté en el DOM y se pinte;
+    // lo dejamos presente pero fuera de pantalla (no `display:none`, que lo pausa).
+    const c = practiceState.recCanvas;
+    c.style.cssText =
+      "position:fixed;left:-10000px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;";
+    document.body.appendChild(c);
   }
   if (practiceState.recCanvas.width !== W || practiceState.recCanvas.height !== H) {
     practiceState.recCanvas.width = W;
@@ -1239,7 +1255,9 @@ function drawRecordFrame(live, state, lightClass, mainText) {
   }
   ctx.restore();
 
-  // ---- Capa de feedback (sin espejar, esquina inferior izquierda) ----
+  // ---- Capa de feedback (sin espejar, esquina SUPERIOR izquierda) ----
+  // Va arriba a propósito: abajo lo taparía la barra de controles del
+  // reproductor al revisar el video.
   const dotR = Math.max(7, W * 0.018);
   const pad = Math.max(10, W * 0.02);
   const fontSize = Math.max(14, Math.round(W * 0.038));
@@ -1247,7 +1265,7 @@ function drawRecordFrame(live, state, lightClass, mainText) {
   ctx.textBaseline = "middle";
   const text = mainText || "";
   const textW = ctx.measureText(text).width;
-  const cy = H - pad - dotR;
+  const cy = pad + dotR; // arriba, fuera del alcance de los controles del video
   const gap = dotR * 0.9;
   const boxH = dotR * 2 + pad * 0.5;
   const boxW = dotR * 2 + gap + textW + pad;
@@ -1340,7 +1358,8 @@ function startRecording() {
     if (e.data && e.data.size > 0) practiceState.recChunks.push(e.data);
   };
   try {
-    practiceState.recorder.start();
+    // timeslice: Safari suele no emitir datos sin él (dataavailable periódico).
+    practiceState.recorder.start(250);
     practiceState.recording = true;
   } catch (err) {
     console.warn("No se pudo iniciar la grabación:", err);
@@ -1570,6 +1589,10 @@ async function finishPractice() {
 
   // Rellenar la sección "Tu intento" si hubo grabación.
   showReview(recBlob);
+  // Si se pidió grabar pero no salió video, avisar (en vez de fallar en silencio).
+  if (practiceState.recEnabled && !recBlob) {
+    toast("No se pudo grabar el intento en este navegador.");
+  }
 
   const choreo = practiceState.choreo;
   const buckets = practiceState.buckets;
