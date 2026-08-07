@@ -15,14 +15,14 @@ const allWork: Project[] = [
   ...projects.filter((p) => !p.featured),    // Other — compact cards
 ]
 
-const FILTERS = ['All', 'AI Systems', 'Products', 'Automation', 'Web'] as const
+const FILTERS = ['All', 'AI & Data', 'Products', 'Tools', 'Web'] as const
 type Filter = typeof FILTERS[number]
 
 function matchesFilter(p: Project, f: Filter): boolean {
   if (f === 'All') return true
-  if (f === 'AI Systems') return ['AI Agent', 'AI Platform', 'AI Pipeline'].includes(p.category)
+  if (f === 'AI & Data') return ['AI Agent', 'AI Platform', 'AI Pipeline', 'Data Science'].includes(p.category)
   if (f === 'Products') return !!p.product
-  if (f === 'Automation') return p.category === 'Automation'
+  if (f === 'Tools') return p.category === 'Tools'
   if (f === 'Web') return ['Web Platform', 'Consumer Platform'].includes(p.category)
   return true
 }
@@ -35,12 +35,16 @@ const categoryAccent: Record<string, string> = {
   'Consumer Platform': 'text-emerald-400 border-emerald-400/20 bg-emerald-950/40',
   'Web Platform': 'text-purple border-purple/20 bg-purple-dim',
   Automation: 'text-orange-400 border-orange-400/20 bg-orange-950/40',
+  Tools: 'text-emerald-400 border-emerald-400/20 bg-emerald-950/40',
+  'Data Science': 'text-orange-400 border-orange-400/20 bg-orange-950/40',
 }
 
 const badgeStyle: Record<string, string> = {
   'App Store': 'bg-blue-950/60 text-blue-400 border-blue-400/30',
   Live: 'bg-emerald-950/60 text-emerald-400 border-emerald-400/30',
   Production: 'bg-accent-dim text-accent border-accent/30',
+  'Try them': 'bg-emerald-950/60 text-emerald-400 border-emerald-400/30',
+  'App Store · Google Play': 'bg-blue-950/60 text-blue-400 border-blue-400/30',
 }
 
 // Large card — featured AI projects and products
@@ -63,13 +67,19 @@ function LargeCard({ project, index }: { project: Project; index: number }) {
                   ${accent} hover:shadow-card-hover transition-all duration-300`}
     >
       {/* Stretched card link — covers entire card */}
-      {project.overview && (
+      {project.overview ? (
         <Link
           href={`/projects/${project.slug}`}
           className="absolute inset-0 z-0"
           aria-label={`View ${project.title} case study`}
         />
-      )}
+      ) : project.liveUrl?.startsWith('/') ? (
+        <Link
+          href={project.liveUrl}
+          className="absolute inset-0 z-0"
+          aria-label={`Open ${project.title}`}
+        />
+      ) : null}
 
       {/* Accent top bar */}
       <div className={`h-px w-full bg-gradient-to-r from-transparent ${project.product ? 'via-purple/40' : 'via-accent/40'} to-transparent
@@ -144,8 +154,8 @@ function LargeCard({ project, index }: { project: Project; index: number }) {
             )}
           </div>
           <div className="relative z-10 flex items-center gap-2">
-            {/* Live link */}
-            {project.liveUrl && (
+            {/* Live link — external opens in a new tab, internal routes get a full CTA below */}
+            {project.liveUrl && !project.liveUrl.startsWith('/') && (
               <a
                 href={project.liveUrl}
                 target="_blank"
@@ -184,6 +194,17 @@ function LargeCard({ project, index }: { project: Project; index: number }) {
                 Deep dive
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M7 17L17 7M17 7H7M17 7V17" />
+                </svg>
+              </span>
+            )}
+            {/* Internal route CTA — e.g. the live tools catalog */}
+            {!project.overview && project.liveUrl?.startsWith('/') && (
+              <span
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium border ${ctaBorder} pointer-events-none`}
+              >
+                Open tools
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
               </span>
             )}

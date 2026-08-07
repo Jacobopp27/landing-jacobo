@@ -30,6 +30,134 @@ export type Project = {
 
 export const projects: Project[] = [
   {
+    slug: 'kotiza',
+    title: 'kotiza',
+    tagline: 'The Colombian anti-Excel system for quoting services.',
+    description:
+      'Multi-tenant SaaS where a small business builds a quote, sends it, and the client approves it online. Calculates VAT and Régimen Simple, protects the minimum margin per product, and generates the PDF — no Excel templates, no broken formulas.',
+    techStack: [
+      { label: 'Next.js', color: 'cyan' },
+      { label: 'Prisma', color: 'default' },
+      { label: 'Neon', color: 'green' },
+      { label: 'Claude', color: 'purple' },
+      { label: 'TypeScript', color: 'cyan' },
+      { label: 'React Native', color: 'cyan' },
+    ],
+    featured: true,
+    product: true,
+    category: 'SaaS Platform',
+    badge: 'Live',
+    liveUrl: 'https://kotiza.co',
+    overview:
+      'kotiza is my own product: a quoting platform built for Colombian tax reality. It started as an internal system and today it is a multi-tenant SaaS with subscription plans in pesos, mobile apps on both stores, and an AI layer that lets you quote by speaking instead of filling forms.',
+    problem:
+      'Colombian small businesses and agencies quote in Excel and Word: templates that break, VAT and Régimen Simple calculated by hand, margins lost to a formula error, and a PDF emailed with no way to know if the client opened it.',
+    solution:
+      'A platform where quotes are built from products and templates, taxes and margin calculate themselves, the PDF is generated with the business branding, and the client approves from a link — no printing, no signing. Voice capture transcribes what you dictate and AI assembles the line items.',
+    architecture: [
+      { label: 'Quote builder', description: 'Templates, products, and minimum margin per product' },
+      { label: 'Tax engine', description: 'VAT and Régimen Simple calculated to the exact peso' },
+      { label: 'Voice → quote', description: 'Transcription + Claude assemble the dictated line items' },
+      { label: 'Online approval', description: 'The client approves from a link, no account needed' },
+      { label: 'Mobile apps', description: 'React Native, published on the App Store and Google Play' },
+    ],
+    results: [
+      'Mobile apps published on the App Store and Google Play',
+      'In production with subscription plans in Colombian pesos',
+      'Quote by voice: you dictate and AI assembles the line items',
+      'Costs and rates protected server-side, never exposed to the client',
+    ],
+  },
+  {
+    slug: 'hilo',
+    title: "hilo — a factory's brain",
+    tagline: 'An AI agent that runs the floor of a textile workshop: it quotes, buys, and tracks production.',
+    description:
+      'The finance and production platform of NAPSA Confecciones. An agent powered by Claude captures by chat and voice, reads purchase invoices with OCR, drafts production sheets and purchase orders, and tracks shop-floor progress in real time. Operators log progress with a QR from their phone, even offline.',
+    techStack: [
+      { label: 'Next.js', color: 'cyan' },
+      { label: 'Claude', color: 'purple' },
+      { label: 'Drizzle', color: 'green' },
+      { label: 'PostgreSQL', color: 'default' },
+      { label: 'Telegram Bot', color: 'cyan' },
+      { label: 'TypeScript', color: 'cyan' },
+    ],
+    featured: true,
+    category: 'AI Platform',
+    badge: 'Production',
+    overview:
+      'hilo is the nervous system of a Colombian textile workshop: it connects quoting with production, purchasing, and cash. On top lives an agent that captures information without friction and proposes the next step — always as a draft, never executing on its own.',
+    problem:
+      "In a garment workshop the information lives in people's heads and on paper: how much fabric each garment takes, what stage each order is in, what is owed to which supplier. Nobody has time to sit and fill in a system, so the system never reflects reality.",
+    solution:
+      'Drop the friction of data capture to zero and let an agent do the heavy lifting. You send a photo of an invoice over Telegram with a plain-language instruction and it proposes the entry; the operator scans a QR at their station and logs progress by quantity; the agent learns how much fabric each garment consumes by asking when it does not know.',
+    architecture: [
+      { label: 'Conversational capture', description: 'Chat and voice → projects, quotes, and invoice entries' },
+      { label: 'Invoice OCR', description: 'Claude reads the invoice and proposes the per-project split' },
+      { label: 'QR shop floor', description: 'Per-station screen, offline-first, operator PIN' },
+      { label: 'Derived kardex', description: 'Stock is computed from movements, never written by hand' },
+      { label: 'Role-scoped agent', description: 'Every tool declares who can call it — filtered in code, not in the prompt' },
+    ],
+    results: [
+      "Running in production against the company's real database",
+      'Telegram bot live, with signed PDFs that open without login',
+      'The floor reports progress by QR even when the internet drops',
+      'The agent only proposes drafts and everything lands in the audit log',
+    ],
+  },
+  {
+    slug: 'herramientas',
+    title: 'Live tools',
+    tagline: 'Four tools you can open and use right now — nothing to install.',
+    description:
+      'An electric-vs-gas car comparator that traces your real routes over the map of Medellín, a dance trainer running pose detection in your own browser, a Colombian payroll calculator, and a CRM for clinics. All running on this same site.',
+    techStack: [
+      { label: 'Next.js', color: 'cyan' },
+      { label: 'Supabase', color: 'green' },
+      { label: 'Leaflet', color: 'default' },
+      { label: 'TensorFlow.js', color: 'orange' },
+      { label: 'React', color: 'cyan' },
+    ],
+    featured: true,
+    category: 'Tools',
+    badge: 'Try them',
+    liveUrl: '/herramientas',
+  },
+  {
+    slug: 'simulador-mundial',
+    title: 'World Cup 2026 Simulator',
+    tagline: 'Probabilistic model that called Spain as champion and Norway as the breakout team.',
+    description:
+      'ELO ratings combined with a bivariate Poisson distribution and Monte Carlo simulation over 49,000 historical matches from 244 national teams. Not a language model giving opinions: statistics running thousands of tournaments to estimate who lifts the cup.',
+    techStack: [
+      { label: 'Python', color: 'cyan' },
+      { label: 'NumPy', color: 'default' },
+      { label: 'SciPy', color: 'default' },
+      { label: 'pandas', color: 'default' },
+      { label: 'Monte Carlo', color: 'purple' },
+    ],
+    featured: true,
+    category: 'Data Science',
+    overview:
+      "A statistical model built to predict the 2026 World Cup. It takes each team's historical strength, models each match's goals as a bivariate Poisson process, and simulates the full tournament thousands of times to derive the probability of every outcome.",
+    problem:
+      'Football predictions are usually opinion dressed up as analysis. I wanted an answer that came from the data: not "who I think wins", but "in how many of ten thousand simulated World Cups does each team win".',
+    solution:
+      "ELO ratings per national team fed with real historical data, a bivariate Poisson model that captures the correlation between both teams' goals, and a Monte Carlo simulation that runs the full tournament — group stage and knockouts — thousands of times.",
+    architecture: [
+      { label: 'Data ingestion', description: 'Unified scraping of historical sources: 244 national teams' },
+      { label: 'ELO ratings', description: 'Relative strength of each national team from match history' },
+      { label: 'Bivariate Poisson', description: "Models both teams' goals with their correlation" },
+      { label: 'Monte Carlo', description: 'Simulates the full tournament thousands of times' },
+    ],
+    results: [
+      'Called Spain as the 2026 World Cup champion',
+      'Called Norway as the breakout team of the tournament',
+      '49,000 historical matches from 244 national teams processed',
+      'Anti-hallucination policy: missing data counts as 0, never invented',
+    ],
+  },
+  {
     slug: 'autonomous-sdr',
     title: 'Autonomous SDR Agent',
     tagline: 'AI sales agent that discovers leads and automates outreach end-to-end.',
@@ -136,99 +264,11 @@ export const projects: Project[] = [
       'Patient satisfaction improved with personalized delivery',
     ],
   },
-  {
-    slug: 'whatsapp-appointment-automation',
-    title: 'WhatsApp Appointment Automation',
-    tagline: 'Automated appointment booking and reminders via WhatsApp.',
-    description:
-      'A conversational bot that handles appointment scheduling, confirmations, and reminders via WhatsApp — integrating with calendar systems and reducing no-shows.',
-    techStack: [
-      { label: 'Python', color: 'cyan' },
-      { label: 'Twilio', color: 'green' },
-      { label: 'OpenAI', color: 'purple' },
-      { label: 'Google Calendar', color: 'default' },
-      { label: 'FastAPI', color: 'cyan' },
-    ],
-    featured: false,
-    category: 'Automation',
-  },
-  {
-    slug: 'ai-lead-generation',
-    title: 'AI Lead Generation Tools',
-    tagline: 'Automated lead discovery and qualification pipelines.',
-    description:
-      'A suite of AI-powered tools that scrape, enrich, score, and qualify leads from multiple sources — delivering sales-ready prospects to CRMs automatically.',
-    techStack: [
-      { label: 'Python', color: 'cyan' },
-      { label: 'GPT-4', color: 'purple' },
-      { label: 'Playwright', color: 'green' },
-      { label: 'Apollo', color: 'default' },
-      { label: 'n8n', color: 'orange' },
-    ],
-    featured: false,
-    category: 'Automation',
-  },
-  {
-    slug: 'automation-pipelines',
-    title: 'Automation Pipelines',
-    tagline: 'Business process automation across multiple industries.',
-    description:
-      'A collection of custom automation workflows built for clients across e-commerce, legal, real-estate, and logistics — connecting APIs, processing data, and eliminating manual work.',
-    techStack: [
-      { label: 'n8n', color: 'orange' },
-      { label: 'Python', color: 'cyan' },
-      { label: 'Zapier', color: 'default' },
-      { label: 'Webhooks', color: 'green' },
-      { label: 'REST APIs', color: 'default' },
-    ],
-    featured: false,
-    category: 'Automation',
-  },
 ]
 
 // ─── Products & Platforms ──────────────────────────────────────────────────
 
 export const productProjects: Project[] = [
-  {
-    slug: 'flowbiit',
-    title: 'Flowbiit',
-    tagline: 'SaaS platform for textile and manufacturing businesses to manage production workflows.',
-    description:
-      'Flowbiit digitizes the production management layer for small and medium manufacturing companies. Teams track orders through every production stage, manage resources, and get operational visibility — replacing spreadsheets and manual coordination with a structured platform.',
-    techStack: [
-      { label: 'React', color: 'cyan' },
-      { label: 'FastAPI', color: 'cyan' },
-      { label: 'PostgreSQL', color: 'default' },
-      { label: 'Python', color: 'cyan' },
-      { label: 'Docker', color: 'default' },
-      { label: 'VPS', color: 'orange' },
-    ],
-    featured: false,
-    product: true,
-    category: 'SaaS Platform',
-    badge: 'Live',
-    liveUrl: 'https://flowbiit.com',   // ← update with real URL
-    githubUrl: 'https://github.com/Jacobopp27/flowbit',
-    overview:
-      'Flowbiit is a production management SaaS built for the textile and manufacturing sector. The platform gives operations teams a structured, digital environment to manage orders, track workflow stages, monitor resource allocation, and make data-driven decisions — all within a single interface designed for manufacturing realities.',
-    problem:
-      'Small and medium manufacturing companies operate with fragmented tools: spreadsheets, WhatsApp threads, and verbal handoffs. This creates production blind spots, delays in order tracking, and zero visibility into bottlenecks — costing time and money at every step of the process.',
-    solution:
-      'A full-stack SaaS platform with a React frontend and FastAPI backend, purpose-built for manufacturing workflows. The platform models production as configurable stage pipelines, allows teams to move orders across stages, assigns resources and responsibilities, and surfaces operational metrics through dashboards.',
-    architecture: [
-      { label: 'React Dashboard', description: 'Operational UI for teams to manage orders and workflows' },
-      { label: 'FastAPI Backend', description: 'REST API handling business logic, auth, and data access' },
-      { label: 'Workflow Engine', description: 'Configurable stage pipelines per product type' },
-      { label: 'PostgreSQL', description: 'Relational data model for orders, resources, and stages' },
-      { label: 'Docker / VPS', description: 'Containerized deployment on cloud infrastructure' },
-    ],
-    results: [
-      'Full production workflow digitized end-to-end',
-      'Order-to-delivery visibility across all stages',
-      'Replaced spreadsheet-based operations for clients',
-      'Deployed on production infrastructure with multi-tenant support',
-    ],
-  },
   {
     slug: 'laminapp',
     title: 'Laminapp',
@@ -245,7 +285,7 @@ export const productProjects: Project[] = [
     featured: false,
     product: true,
     category: 'Mobile App',
-    badge: 'App Store',
+    badge: 'App Store · Google Play',
     liveUrl: 'https://lamin.app/#download',   // ← update with real App Store URL
     overview:
       "Laminapp is a mobile app published on the App Store for the World Cup sticker collecting community. Collectors track their collection state and the system automatically matches them with other users for trades — eliminating the chaos of managing swaps manually through social media groups.",
